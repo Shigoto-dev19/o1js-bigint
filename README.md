@@ -8,6 +8,16 @@ This template uses TypeScript.
 npm run build
 ```
 
+## How run and plot benchmarks
+
+```sh
+node build/src/benchmark_runner.js
+```
+
+```sh
+python3 src/plot.py
+```
+
 ## How to run tests
 
 ```sh
