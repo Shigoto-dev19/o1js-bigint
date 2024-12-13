@@ -1,0 +1,347 @@
+[
+  {
+    "size": 512,
+    "modMul": {
+      "Total rows": 143,
+      "RangeCheck0": 66,
+      "Generic": 77
+    },
+    "modSquare": {
+      "Total rows": 121,
+      "RangeCheck0": 56,
+      "Generic": 65
+    },
+    "assertEqual": {
+      "Total rows": 26,
+      "RangeCheck0": 20,
+      "Generic": 6
+    },
+    "rsaVerify": {
+      "Total rows": 1663,
+      "RangeCheck0": 642,
+      "Generic": 1021
+    }
+  },
+  {
+    "size": 768,
+    "modMul": {
+      "Total rows": 231,
+      "RangeCheck0": 94,
+      "Generic": 137
+    },
+    "modSquare": {
+      "Total rows": 193,
+      "RangeCheck0": 80,
+      "Generic": 113
+    },
+    "assertEqual": {
+      "Total rows": 36,
+      "RangeCheck0": 28,
+      "Generic": 8
+    },
+    "rsaVerify": {
+      "Total rows": 2743,
+      "RangeCheck0": 926,
+      "Generic": 1817
+    }
+  },
+  {
+    "size": 1024,
+    "modMul": {
+      "Total rows": 335,
+      "RangeCheck0": 122,
+      "Generic": 213
+    },
+    "modSquare": {
+      "Total rows": 277,
+      "RangeCheck0": 104,
+      "Generic": 173
+    },
+    "assertEqual": {
+      "Total rows": 46,
+      "RangeCheck0": 36,
+      "Generic": 10
+    },
+    "rsaVerify": {
+      "Total rows": 4031,
+      "RangeCheck0": 1210,
+      "Generic": 2821
+    }
+  },
+  {
+    "size": 1280,
+    "modMul": {
+      "Total rows": 521,
+      "RangeCheck0": 164,
+      "Generic": 357
+    },
+    "modSquare": {
+      "Total rows": 425,
+      "RangeCheck0": 140,
+      "Generic": 285
+    },
+    "assertEqual": {
+      "Total rows": 61,
+      "RangeCheck0": 48,
+      "Generic": 13
+    },
+    "rsaVerify": {
+      "Total rows": 6353,
+      "RangeCheck0": 1636,
+      "Generic": 4717
+    }
+  },
+  {
+    "size": 1536,
+    "modMul": {
+      "Total rows": 665,
+      "RangeCheck0": 192,
+      "Generic": 473
+    },
+    "modSquare": {
+      "Total rows": 539,
+      "RangeCheck0": 164,
+      "Generic": 375
+    },
+    "assertEqual": {
+      "Total rows": 71,
+      "RangeCheck0": 56,
+      "Generic": 15
+    },
+    "rsaVerify": {
+      "Total rows": 8161,
+      "RangeCheck0": 1920,
+      "Generic": 6241
+    }
+  },
+  {
+    "size": 1792,
+    "modMul": {
+      "Total rows": 825,
+      "RangeCheck0": 220,
+      "Generic": 605
+    },
+    "modSquare": {
+      "Total rows": 665,
+      "RangeCheck0": 188,
+      "Generic": 477
+    },
+    "assertEqual": {
+      "Total rows": 81,
+      "RangeCheck0": 64,
+      "Generic": 17
+    },
+    "rsaVerify": {
+      "Total rows": 10177,
+      "RangeCheck0": 2204,
+      "Generic": 7973
+    }
+  },
+  {
+    "size": 2048,
+    "modMul": {
+      "Total rows": 1001,
+      "RangeCheck0": 248,
+      "Generic": 753
+    },
+    "modSquare": {
+      "Total rows": 803,
+      "RangeCheck0": 212,
+      "Generic": 591
+    },
+    "assertEqual": {
+      "Total rows": 91,
+      "RangeCheck0": 72,
+      "Generic": 19
+    },
+    "rsaVerify": {
+      "Total rows": 12401,
+      "RangeCheck0": 2488,
+      "Generic": 9913
+    }
+  },
+  {
+    "size": 2304,
+    "modMul": {
+      "Total rows": 1193,
+      "RangeCheck0": 276,
+      "Generic": 917
+    },
+    "modSquare": {
+      "Total rows": 953,
+      "RangeCheck0": 236,
+      "Generic": 717
+    },
+    "assertEqual": {
+      "Total rows": 101,
+      "RangeCheck0": 80,
+      "Generic": 21
+    },
+    "rsaVerify": {
+      "Total rows": 14833,
+      "RangeCheck0": 2772,
+      "Generic": 12061
+    }
+  },
+  {
+    "size": 2560,
+    "modMul": {
+      "Total rows": 1511,
+      "RangeCheck0": 318,
+      "Generic": 1193
+    },
+    "modSquare": {
+      "Total rows": 1201,
+      "RangeCheck0": 272,
+      "Generic": 929
+    },
+    "assertEqual": {
+      "Total rows": 116,
+      "RangeCheck0": 92,
+      "Generic": 24
+    },
+    "rsaVerify": {
+      "Total rows": 18871,
+      "RangeCheck0": 3198,
+      "Generic": 15673
+    }
+  },
+  {
+    "size": 2816,
+    "modMul": {
+      "Total rows": 1743,
+      "RangeCheck0": 346,
+      "Generic": 1397
+    },
+    "modSquare": {
+      "Total rows": 1381,
+      "RangeCheck0": 296,
+      "Generic": 1085
+    },
+    "assertEqual": {
+      "Total rows": 126,
+      "RangeCheck0": 100,
+      "Generic": 26
+    },
+    "rsaVerify": {
+      "Total rows": 21823,
+      "RangeCheck0": 3482,
+      "Generic": 18341
+    }
+  },
+  {
+    "size": 3072,
+    "modMul": {
+      "Total rows": 1991,
+      "RangeCheck0": 374,
+      "Generic": 1617
+    },
+    "modSquare": {
+      "Total rows": 1573,
+      "RangeCheck0": 320,
+      "Generic": 1253
+    },
+    "assertEqual": {
+      "Total rows": 136,
+      "RangeCheck0": 108,
+      "Generic": 28
+    },
+    "rsaVerify": {
+      "Total rows": 24983,
+      "RangeCheck0": 3766,
+      "Generic": 21217
+    }
+  },
+  {
+    "size": 3328,
+    "modMul": {
+      "Total rows": 2255,
+      "RangeCheck0": 402,
+      "Generic": 1853
+    },
+    "modSquare": {
+      "Total rows": 1777,
+      "RangeCheck0": 344,
+      "Generic": 1433
+    },
+    "assertEqual": {
+      "Total rows": 146,
+      "RangeCheck0": 116,
+      "Generic": 30
+    },
+    "rsaVerify": {
+      "Total rows": 28351,
+      "RangeCheck0": 4050,
+      "Generic": 24301
+    }
+  },
+  {
+    "size": 3584,
+    "modMul": {
+      "Total rows": 2535,
+      "RangeCheck0": 430,
+      "Generic": 2105
+    },
+    "modSquare": {
+      "Total rows": 1993,
+      "RangeCheck0": 368,
+      "Generic": 1625
+    },
+    "assertEqual": {
+      "Total rows": 156,
+      "RangeCheck0": 124,
+      "Generic": 32
+    },
+    "rsaVerify": {
+      "Total rows": 31927,
+      "RangeCheck0": 4334,
+      "Generic": 27593
+    }
+  },
+  {
+    "size": 3840,
+    "modMul": {
+      "Total rows": 2985,
+      "RangeCheck0": 472,
+      "Generic": 2513
+    },
+    "modSquare": {
+      "Total rows": 2339,
+      "RangeCheck0": 404,
+      "Generic": 1935
+    },
+    "assertEqual": {
+      "Total rows": 171,
+      "RangeCheck0": 136,
+      "Generic": 35
+    },
+    "rsaVerify": {
+      "Total rows": 37681,
+      "RangeCheck0": 4760,
+      "Generic": 32921
+    }
+  },
+  {
+    "size": 4096,
+    "modMul": {
+      "Total rows": 3305,
+      "RangeCheck0": 500,
+      "Generic": 2805
+    },
+    "modSquare": {
+      "Total rows": 2585,
+      "RangeCheck0": 428,
+      "Generic": 2157
+    },
+    "assertEqual": {
+      "Total rows": 181,
+      "RangeCheck0": 144,
+      "Generic": 37
+    },
+    "rsaVerify": {
+      "Total rows": 41777,
+      "RangeCheck0": 5044,
+      "Generic": 36733
+    }
+  }
+]
