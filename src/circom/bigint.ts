@@ -1,28 +1,46 @@
 import { assert, Bool, Field, Provable } from 'o1js';
 import { long_div, mod_inv, splitFn, splitThreeFn } from './utils.js';
 
-export { fromFields, bigAdd, bigMult, bigSub, bigLessThan, bigIsEqual, bigMod };
+export {
+  fromFields,
+  unsafeFromLimbs,
+  bigAdd,
+  bigMult,
+  bigSub,
+  bigLessThan,
+  bigIsEqual,
+  bigMod,
+  bigMultModP,
+};
 
 function fromFields(fields: Field[], n: number, k: number): bigint {
   let result = 0n;
   const shiftFactor = BigInt(k);
 
   for (let i = 0; i < n; i++) {
-    const fieldValue = BigInt(fields[i].toString());
+    const fieldValue = fields[i].toBigInt();
     result |= fieldValue << (shiftFactor * BigInt(i));
   }
 
   return result;
 }
 
+function unsafeFromLimbs(fields: Field[], n: number, k: number) {
+  assert(fields.length === k, `expected ${k} limbs`);
+  let value = 0n;
+  for (let i = k - 1; i >= 0; i--) {
+    value <<= BigInt(n);
+    value += fields[i]!.toBigInt();
+  }
+  return value;
+}
+
 // addition mod 2**n with carry bit
 function modSum(a: Field, b: Field, n: number) {
   assert(n <= 252);
-  const carry = Field(n)
-    .toBits(n + 1)
-    // eslint-disable-next-line no-unexpected-multiline
-    [n].toField();
-  const sum = a.add(b).sub(carry.mul(1 << n));
+  const ab = a.add(b);
+  const carry = ab.toBits(n + 1)[n].toField();
+  const sum = ab.sub(carry.mul(1n << BigInt(n)));
 
   return { carry, sum };
 }
@@ -53,15 +71,11 @@ function modSubThree(a: Field, b: Field, c: Field, n: number) {
 
 function modSumThree(a: Field, b: Field, c: Field, n: number) {
   assert(n + 2 <= 253);
-  const bits = a
-    .add(b)
-    .add(c)
-    .toBits(n + 2);
+  const abc = a.add(b).add(c);
+  const bits = abc.toBits(n + 2);
+
   const carry = bits[n].toField().add(bits[n + 1].toField().mul(2));
-  const sum = a
-    .add(b)
-    .add(c)
-    .sub(carry.mul(1 << n));
+  const sum = abc.sub(carry.mul(1n << BigInt(n)));
 
   return { carry, sum };
 }
@@ -152,8 +166,9 @@ function bigAdd(a: Field[], b: Field[], n: number, k: number) {
   const unit_0 = modSum(a[0], b[0], n);
   out[0] = unit_0.sum;
 
+  let c: Field;
   for (let i = 1; i < k; i++) {
-    const c = i === 1 ? unit_0.carry : unit[i - 2].carry;
+    c = i === 1 ? unit_0.carry : unit[i - 2].carry;
 
     unit[i - 1] = modSumThree(a[i], b[i], c, n);
     out[i] = unit[i - 1].sum;
