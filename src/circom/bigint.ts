@@ -6,16 +6,18 @@ export {
   fromFields,
   unsafeFromLimbs,
   bigAdd,
-  bigMult,
   bigSub,
-  bigLessThan,
-  bigIsEqual,
+  bigSubModP,
+  bigMult,
   bigMod,
   bigMultModP,
-  bigSubModP,
   bigModInv,
+  bigLessThan,
+  bigIsEqual,
 };
 
+//todo remove unused functions
+//todo remove
 function fromFields(fields: Field[], n: number, k: number): bigint {
   let result = 0n;
   const shiftFactor = BigInt(k);
@@ -189,67 +191,44 @@ function bigAdd(a: Field[], b: Field[], n: number, k: number) {
   return out;
 }
 
-// a and b have n-bit registers
-// a has ka registers, each with NONNEGATIVE ma-bit values (ma can be > n)
-// b has kb registers, each with NONNEGATIVE mb-bit values (mb can be > n)
-// out has ka + kb - 1 registers, each with (ma + mb + ceil(log(max(ka, kb))))-bit values
-function bigMultNoCarry(
-  a: Field[],
-  b: Field[],
-  n: number,
-  ma: number,
-  mb: number,
-  ka: number,
-  kb: number
-) {
-  assert(ma + mb <= 253);
+// a[i], b[i] in 0... 2**n-1
+// represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
+// assume a >= b
+function bigSub(a: Field[], b: Field[], n: number, k: number) {
+  assert(n <= 252);
 
-  const out: Field[] = Provable.witness(
-    Provable.Array(Field, ka + kb - 1),
-    () => {
-      let prod_val: Field[] = Array.from({ length: ka + kb - 1 }, () =>
-        Field(0)
-      );
-      for (let i = 0; i < ka; i++) {
-        for (let j = 0; j < kb; j++) {
-          prod_val[i + j] = prod_val[i + j].add(a[i].mul(b[j]));
-        }
-      }
-      let res: Field[] = [];
-      for (let i = 0; i < ka + kb - 1; i++) {
-        res[i] = prod_val[i];
-      }
-      return res;
+  const unit0 = modSub(a[0], b[0], n);
+  let unit: ReturnType<typeof modSubThree>[] = [];
+  let out: Field[] = [unit0.out];
+
+  for (let i = 1; i < k; i++) {
+    if (i == 1) {
+      unit[i - 1] = modSubThree(a[i], b[i], unit0.borrow, n);
+    } else {
+      unit[i - 1] = modSubThree(a[i], b[i], unit[i - 2].borrow, n);
     }
+    out[i] = unit[i - 1].out;
+  }
+  const underflow = unit[k - 2].borrow;
+
+  return { out, underflow };
+}
+
+// calculates (a - b) % p, where a, b < p
+// note: does not assume a >= b
+function bigSubModP(a: Field[], b: Field[], p: Field[], n: number, k: number) {
+  assert(n <= 252);
+
+  const sub = bigSub(a, b, n, k);
+  const flag = sub.underflow;
+  const out = bigAdd(
+    sub.out,
+    p.map((f) => f.mul(flag)),
+    n,
+    k
   );
 
-  let a_poly: Field[] = [];
-  let b_poly: Field[] = [];
-  let out_poly: Field[] = [];
-
-  for (let i = 0; i < ka + kb - 1; i++) {
-    out_poly[i] = Field(0);
-    a_poly[i] = Field(0);
-    b_poly[i] = Field(0);
-
-    for (let j = 0; j < ka + kb - 1; j++) {
-      out_poly[i] = out_poly[i].add(out[j].mul(i ** j));
-    }
-
-    for (let j = 0; j < ka; j++) {
-      a_poly[i] = a_poly[i].add(a[j].mul(i ** j));
-    }
-
-    for (let j = 0; j < kb; j++) {
-      b_poly[i] = b_poly[i].add(b[j].mul(i ** j));
-    }
-  }
-
-  for (let i = 0; i < ka + kb - 1; i++) {
-    out_poly[i].assertEquals(a_poly[i].mul(b_poly[i]));
-  }
-
-  return out;
+  return out.slice(0, k);
 }
 
 // in[i] contains longs
@@ -321,51 +300,74 @@ function longToShortNoEndCarry(input: Field[], n: number, k: number) {
   return out;
 }
 
+// a and b have n-bit registers
+// a has ka registers, each with NONNEGATIVE ma-bit values (ma can be > n)
+// b has kb registers, each with NONNEGATIVE mb-bit values (mb can be > n)
+// out has ka + kb - 1 registers, each with (ma + mb + ceil(log(max(ka, kb))))-bit values
+function bigMultNoCarry(
+  a: Field[],
+  b: Field[],
+  n: number,
+  ma: number,
+  mb: number,
+  ka: number,
+  kb: number
+) {
+  assert(ma + mb <= 253);
+
+  const out: Field[] = Provable.witness(
+    Provable.Array(Field, ka + kb - 1),
+    () => {
+      let prod_val: Field[] = Array.from({ length: ka + kb - 1 }, () =>
+        Field(0)
+      );
+      for (let i = 0; i < ka; i++) {
+        for (let j = 0; j < kb; j++) {
+          prod_val[i + j] = prod_val[i + j].add(a[i].mul(b[j]));
+        }
+      }
+      let res: Field[] = [];
+      for (let i = 0; i < ka + kb - 1; i++) {
+        res[i] = prod_val[i];
+      }
+      return res;
+    }
+  );
+
+  let a_poly: Field[] = [];
+  let b_poly: Field[] = [];
+  let out_poly: Field[] = [];
+
+  for (let i = 0; i < ka + kb - 1; i++) {
+    out_poly[i] = Field(0);
+    a_poly[i] = Field(0);
+    b_poly[i] = Field(0);
+
+    for (let j = 0; j < ka + kb - 1; j++) {
+      out_poly[i] = out_poly[i].add(out[j].mul(i ** j));
+    }
+
+    for (let j = 0; j < ka; j++) {
+      a_poly[i] = a_poly[i].add(a[j].mul(i ** j));
+    }
+
+    for (let j = 0; j < kb; j++) {
+      b_poly[i] = b_poly[i].add(b[j].mul(i ** j));
+    }
+  }
+
+  for (let i = 0; i < ka + kb - 1; i++) {
+    out_poly[i].assertEquals(a_poly[i].mul(b_poly[i]));
+  }
+
+  return out;
+}
+
 function bigMult(a: Field[], b: Field[], n: number, k: number) {
   const multNoCarry = bigMultNoCarry(a, b, n, n, n, k, k);
   const longshort = longToShortNoEndCarry(multNoCarry, n, 2 * k - 1);
 
   return longshort;
-}
-
-function bigLessThan(a: Field[], b: Field[], n: number, k: number) {
-  let lt: Bool[] = [];
-  let eq: Bool[] = [];
-
-  for (let i = 0; i < k; i++) {
-    lt[i] = a[i].lessThan(b[i]);
-    eq[i] = a[i].equals(b[i]);
-  }
-
-  // ors[i] holds (lt[k - 1] || (eq[k - 1] && lt[k - 2]) .. || (eq[k - 1] && .. && lt[i]))
-  // ands[i] holds (eq[k - 1] && .. && lt[i])
-  // eq_ands[i] holds (eq[k - 1] && .. && eq[i])
-
-  let ands: Bool[] = [];
-  let eq_ands: Bool[] = [];
-  let ors: Bool[] = [];
-  for (let i = k - 2; i >= 0; i--) {
-    if (i == k - 2) {
-      ands[i] = eq[k - 1].and(lt[k - 2]);
-      eq_ands[i] = eq[k - 1].and(eq[k - 2]);
-      ors[i] = lt[k - 1].or(ands[i]);
-    } else {
-      ands[i] = eq_ands[i + 1].and(lt[i]);
-      eq_ands[i] = eq[k - 1].and(eq[i]);
-      ors[i] = ors[i + 1].or(ands[i]);
-    }
-  }
-  return ors[0];
-}
-
-function bigIsEqual(a: Field[], b: Field[], k: number) {
-  let sum = Field(0);
-
-  for (let i = 0; i < k; i++) {
-    sum = sum.add(a[i].equals(b[i]).toField());
-  }
-
-  return sum.equals(k);
 }
 
 // leading register of b should be non-zero
@@ -408,46 +410,6 @@ function bigMod(a: Field[], b: Field[], n: number, k: number) {
   return { div, mod };
 }
 
-// a[i], b[i] in 0... 2**n-1
-// represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
-// assume a >= b
-function bigSub(a: Field[], b: Field[], n: number, k: number) {
-  assert(n <= 252);
-
-  const unit0 = modSub(a[0], b[0], n);
-  let unit: ReturnType<typeof modSubThree>[] = [];
-  let out: Field[] = [unit0.out];
-
-  for (let i = 1; i < k; i++) {
-    if (i == 1) {
-      unit[i - 1] = modSubThree(a[i], b[i], unit0.borrow, n);
-    } else {
-      unit[i - 1] = modSubThree(a[i], b[i], unit[i - 2].borrow, n);
-    }
-    out[i] = unit[i - 1].out;
-  }
-  const underflow = unit[k - 2].borrow;
-
-  return { out, underflow };
-}
-
-// calculates (a - b) % p, where a, b < p
-// note: does not assume a >= b
-function bigSubModP(a: Field[], b: Field[], p: Field[], n: number, k: number) {
-  assert(n <= 252);
-
-  const sub = bigSub(a, b, n, k);
-  const flag = sub.underflow;
-  const out = bigAdd(
-    sub.out,
-    p.map((f) => f.mul(flag)),
-    n,
-    k
-  );
-
-  return out.slice(0, k);
-}
-
 function bigMultModP(a: Field[], b: Field[], p: Field[], n: number, k: number) {
   assert(n <= 252);
 
@@ -478,6 +440,46 @@ function bigModInv(input: Field[], p: Field[], n: number, k: number) {
   }
 
   return out;
+}
+
+function bigLessThan(a: Field[], b: Field[], n: number, k: number) {
+  let lt: Bool[] = [];
+  let eq: Bool[] = [];
+
+  for (let i = 0; i < k; i++) {
+    lt[i] = a[i].lessThan(b[i]);
+    eq[i] = a[i].equals(b[i]);
+  }
+
+  // ors[i] holds (lt[k - 1] || (eq[k - 1] && lt[k - 2]) .. || (eq[k - 1] && .. && lt[i]))
+  // ands[i] holds (eq[k - 1] && .. && lt[i])
+  // eq_ands[i] holds (eq[k - 1] && .. && eq[i])
+
+  let ands: Bool[] = [];
+  let eq_ands: Bool[] = [];
+  let ors: Bool[] = [];
+  for (let i = k - 2; i >= 0; i--) {
+    if (i == k - 2) {
+      ands[i] = eq[k - 1].and(lt[k - 2]);
+      eq_ands[i] = eq[k - 1].and(eq[k - 2]);
+      ors[i] = lt[k - 1].or(ands[i]);
+    } else {
+      ands[i] = eq_ands[i + 1].and(lt[i]);
+      eq_ands[i] = eq[k - 1].and(eq[i]);
+      ors[i] = ors[i + 1].or(ands[i]);
+    }
+  }
+  return ors[0];
+}
+
+function bigIsEqual(a: Field[], b: Field[], k: number) {
+  let sum = Field(0);
+
+  for (let i = 0; i < k; i++) {
+    sum = sum.add(a[i].equals(b[i]).toField());
+  }
+
+  return sum.equals(k);
 }
 
 // in[i] contains values in the range -2^(m-1) to 2^(m-1)

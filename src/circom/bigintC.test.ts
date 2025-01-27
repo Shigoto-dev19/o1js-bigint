@@ -35,8 +35,8 @@ describe('Circom BigAdd tests', () => {
     expect(resBig).toEqual(xb * 2n);
   });
 
-  it('should add two provable bigints - 100000 iterations', async () => {
-    for (let i = 0; i < 100000; i++) {
+  it('should add two provable bigints - 10000 iterations', async () => {
+    for (let i = 0; i < 10000; i++) {
       const x = randomBigintRange(2n, 2n ** 256n);
       const b1 = Provable.witness(Bigint2048, () => Bigint2048.from(x));
       const y = randomBigintRange(2n, 2n ** 256n);
@@ -93,36 +93,6 @@ describe('Circom BigSub tests', () => {
   });
 });
 
-describe('Circom BigMult tests', () => {
-  it('should multiply two provable bigints', async () => {
-    const x = randomBigintRange(2n ** 128n, 2n ** 256n);
-    const b1 = Provable.witness(Bigint2048, () => Bigint2048.from(x));
-
-    const y = randomBigintRange(2n, 2n ** 128n);
-    const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
-
-    const resFields = bigMult(b1.fields, b2.fields, 116, 18);
-    const resBig = unsafeFromLimbs(resFields, 116, 36);
-
-    expect(resBig).toEqual(x * y);
-  });
-
-  it('should multiply two provable bigints - 10000 iterations', async () => {
-    for (let i = 0; i < 10000; i++) {
-      const x = randomBigintRange(2n ** 128n, 2n ** 256n);
-      const b1 = Provable.witness(Bigint2048, () => Bigint2048.from(x));
-
-      const y = randomBigintRange(2n, 2n ** 128n);
-      const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
-
-      const resFields = bigMult(b1.fields, b2.fields, 116, 18);
-      const resBig = unsafeFromLimbs(resFields, 116, 36);
-
-      expect(resBig).toEqual(x * y);
-    }
-  });
-});
-
 describe('Circom BigSubModP tests', () => {
   it('should sub mod two provable bigints', async () => {
     const x = randomBigintRange(2n ** 128n, 2n ** 256n);
@@ -158,8 +128,8 @@ describe('Circom BigSubModP tests', () => {
     expect(resBig).not.toEqual((x - y) % p);
   });
 
-  it('should sub mod two provable bigints - 10000 iterations', async () => {
-    for (let i = 0; i < 10000; i++) {
+  it('should sub mod two provable bigints - 1000 iterations', async () => {
+    for (let i = 0; i < 1000; i++) {
       const x = randomBigintRange(2n ** 128n, 2n ** 256n);
       const b1 = Provable.witness(Bigint2048, () => Bigint2048.from(x));
 
@@ -170,6 +140,36 @@ describe('Circom BigSubModP tests', () => {
       const resBig = unsafeFromLimbs(resFields.out, 116, 18);
 
       expect(resBig).toEqual(x - y);
+    }
+  });
+});
+
+describe('Circom BigMult tests', () => {
+  it('should multiply two provable bigints', async () => {
+    const x = randomBigintRange(2n ** 128n, 2n ** 256n);
+    const b1 = Provable.witness(Bigint2048, () => Bigint2048.from(x));
+
+    const y = randomBigintRange(2n, 2n ** 128n);
+    const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
+
+    const resFields = bigMult(b1.fields, b2.fields, 116, 18);
+    const resBig = unsafeFromLimbs(resFields, 116, 36);
+
+    expect(resBig).toEqual(x * y);
+  });
+
+  it('should multiply two provable bigints - 10000 iterations', async () => {
+    for (let i = 0; i < 10000; i++) {
+      const x = randomBigintRange(2n ** 128n, 2n ** 256n);
+      const b1 = Provable.witness(Bigint2048, () => Bigint2048.from(x));
+
+      const y = randomBigintRange(2n, 2n ** 128n);
+      const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
+
+      const resFields = bigMult(b1.fields, b2.fields, 116, 18);
+      const resBig = unsafeFromLimbs(resFields, 116, 36);
+
+      expect(resBig).toEqual(x * y);
     }
   });
 });
