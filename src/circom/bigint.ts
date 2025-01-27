@@ -1,5 +1,6 @@
 import { assert, Bool, Field, Provable } from 'o1js';
-import { long_div, mod_inv, splitFn, splitThreeFn } from './utils.js';
+import { long_div, mod_inv, splitFn, splitThreeFn, log2Ceil } from './utils.js';
+import { Bigint2048, modInverse, rangeCheck116 } from '../bigint.js';
 
 export {
   fromFields,
@@ -11,6 +12,8 @@ export {
   bigIsEqual,
   bigMod,
   bigMultModP,
+  bigSubModP,
+  bigModInv,
 };
 
 function fromFields(fields: Field[], n: number, k: number): bigint {
@@ -38,9 +41,11 @@ function unsafeFromLimbs(fields: Field[], n: number, k: number) {
 // addition mod 2**n with carry bit
 function modSum(a: Field, b: Field, n: number) {
   assert(n <= 252);
+  const limbSize = 1n << BigInt(n);
   const ab = a.add(b);
-  const carry = ab.toBits(n + 1)[n].toField();
-  const sum = ab.sub(carry.mul(1n << BigInt(n)));
+
+  const carry = ab.greaterThan(limbSize).toField();
+  const sum = ab.sub(carry.mul(limbSize));
 
   return { carry, sum };
 }
@@ -48,8 +53,9 @@ function modSum(a: Field, b: Field, n: number) {
 // a - b
 function modSub(a: Field, b: Field, n: number) {
   assert(n <= 252);
+
   const borrow = a.lessThan(b).toField();
-  const out = a.sub(b).add(borrow.mul(1 << n));
+  const out = a.sub(b).add(borrow.mul(1n << BigInt(n)));
 
   return { borrow, out };
 }
@@ -60,22 +66,27 @@ function modSubThree(a: Field, b: Field, c: Field, n: number) {
   assert(n + 2 <= 253);
   a.sub(b)
     .sub(c)
-    .add(1 << n)
+    .add(1n << BigInt(n))
     .assertGreaterThanOrEqual(0);
+
   const b_plus_c = b.add(c);
   const borrow = a.lessThan(b_plus_c).toField();
-  const out = a.sub(b_plus_c).add(borrow.mul(1 << n));
+
+  const out = a.sub(b_plus_c).add(borrow.mul(1n << BigInt(n)));
 
   return { borrow, out };
 }
 
 function modSumThree(a: Field, b: Field, c: Field, n: number) {
   assert(n + 2 <= 253);
-  const abc = a.add(b).add(c);
-  const bits = abc.toBits(n + 2);
+  const limbSize = 1n << BigInt(n);
 
-  const carry = bits[n].toField().add(bits[n + 1].toField().mul(2));
-  const sum = abc.sub(carry.mul(1n << BigInt(n)));
+  const abc = a.add(b).add(c);
+  // const bits = abc.toBits(n + 2);
+  const carry = abc.greaterThan(limbSize).toField();
+
+  // const carry = bits[n].toField().add(bits[n + 1].toField().mul(2));
+  const sum = abc.sub(carry.mul(limbSize));
 
   return { carry, sum };
 }
@@ -107,27 +118,27 @@ function modProd(a: Field, b: Field, n: number) {
   return { carry, prod };
 }
 
-// split n + m bit input into two outputs
-function split(input: Field, n: number, m: number) {
-  assert(n <= 126);
+// // split n + m bit input into two outputs
+// function split(input: Field, n: number, m: number) {
+//   assert(n <= 126);
 
-  const small = Provable.witness(Field, () => {
-    const res = input.toBigInt() % BigInt(1 << n);
-    return Field(res);
-  });
+//   const small = Provable.witness(Field, () => {
+//     const res = input.toBigInt() % BigInt(1 << n);
+//     return Field(res);
+//   });
 
-  const big = Provable.witness(Field, () => {
-    const res = input.toBigInt() / BigInt(1 << n);
-    return Field(res);
-  });
+//   const big = Provable.witness(Field, () => {
+//     const res = input.toBigInt() / BigInt(1 << n);
+//     return Field(res);
+//   });
 
-  const small_bits = small.toBits(n);
-  const big_bits = big.toBits(m);
+//   const small_bits = small.toBits(n);
+//   const big_bits = big.toBits(m);
 
-  input.assertEquals(small.add(big.mul(1 << n)));
+//   input.assertEquals(small.add(big.mul(1 << n)));
 
-  return { small, big };
-}
+//   return { small, big };
+// }
 
 function splitThree(input: Field, n: number, m: number, k: number) {
   assert(n <= 126);
@@ -192,17 +203,18 @@ function bigMultNoCarry(
   kb: number
 ) {
   assert(ma + mb <= 253);
-  let prod_val: Field[] = Array.from({ length: ka + kb - 1 }, () => Field(0));
-
-  for (let i = 0; i < ka; i++) {
-    for (let j = 0; j < kb; j++) {
-      prod_val[i + j] = prod_val[i + j].add(a[i].mul(b[j]));
-    }
-  }
 
   const out: Field[] = Provable.witness(
     Provable.Array(Field, ka + kb - 1),
     () => {
+      let prod_val: Field[] = Array.from({ length: ka + kb - 1 }, () =>
+        Field(0)
+      );
+      for (let i = 0; i < ka; i++) {
+        for (let j = 0; j < kb; j++) {
+          prod_val[i + j] = prod_val[i + j].add(a[i].mul(b[j]));
+        }
+      }
       let res: Field[] = [];
       for (let i = 0; i < ka + kb - 1; i++) {
         res[i] = prod_val[i];
@@ -211,9 +223,9 @@ function bigMultNoCarry(
     }
   );
 
-  let out_poly: Field[] = [];
   let a_poly: Field[] = [];
   let b_poly: Field[] = [];
+  let out_poly: Field[] = [];
 
   for (let i = 0; i < ka + kb - 1; i++) {
     out_poly[i] = Field(0);
@@ -240,41 +252,36 @@ function bigMultNoCarry(
   return out;
 }
 
-function log2Ceil(a: number): number {
-  return Math.ceil(Math.log2(a));
-}
-
 // in[i] contains longs
 // out[i] contains shorts
 function longToShortNoEndCarry(input: Field[], n: number, k: number) {
   assert(n <= 126);
   let out: Field[] = [];
 
-  // let _split: ReturnType<typeof splitThree>[] = [];
-  let _split: Field[][] = [];
+  let split: Field[][] = [];
   for (let i = 0; i < k; i++) {
-    _split[i] = splitThreeFn(input[i], n, n, n).map(Field);
+    split[i] = splitThreeFn(input[i], n, n, n).map(Field);
   }
 
   let carry: Field[] = [];
   carry[0] = Field(0);
-  out[0] = _split[0][0];
+  out[0] = split[0][0];
 
-  if (k === 1) out[1] = _split[0][1];
+  if (k === 1) out[1] = split[0][1];
   if (k > 1) {
-    let sumAndCarry = splitFn(_split[0][1].add(_split[1][0]), n, n);
+    let sumAndCarry = splitFn(split[0][1].add(split[1][0]), n, n);
     out[1] = sumAndCarry[0];
     carry[1] = sumAndCarry[1];
   }
   if (k == 2) {
-    out[2] = _split[1][1].add(_split[0][2]).add(carry[1]);
+    out[2] = split[1][1].add(split[0][2]).add(carry[1]);
   }
   if (k > 2) {
     for (let i = 2; i < k; i++) {
       let sumAndCarry = splitFn(
-        _split[i][0]
-          .add(_split[i - 1][1])
-          .add(_split[i - 2][2])
+        split[i][0]
+          .add(split[i - 1][1])
+          .add(split[i - 2][2])
           .add(carry[i - 1]),
         n,
         n
@@ -282,29 +289,31 @@ function longToShortNoEndCarry(input: Field[], n: number, k: number) {
       out[i] = sumAndCarry[0];
       carry[i] = sumAndCarry[1];
     }
-    out[k] = _split[k - 1][1].add(_split[k - 2][2]).add(carry[k - 1]);
+    out[k] = split[k - 1][1].add(split[k - 2][2]).add(carry[k - 1]);
   }
 
   let runningCarry: Field[] = [];
   runningCarry[0] = Provable.witness(Field, () => {
-    const w = (input[0].toBigInt() - out[0].toBigInt()) / BigInt(1 << n);
+    const w = input[0].sub(out[0]).div(1n << BigInt(n));
     return Field(w);
   });
 
-  let runningCarryBits = runningCarry[0].toBits(n + log2Ceil(k));
-  runningCarry[0].mul(1 << n).assertEquals(input[0].sub(out[0]));
+  // let runningCarryBits = runningCarry[0].toBits(n + log_ceil(k));
+  runningCarry[0].assertLessThan(1n << BigInt(n + log2Ceil(k)));
+  runningCarry[0].mul(1n << BigInt(n)).assertEquals(input[0].sub(out[0]));
   for (let i = 1; i < k; i++) {
     runningCarry[i] = Provable.witness(Field, () => {
-      const w =
-        (input[i].toBigInt() -
-          out[i].toBigInt() +
-          runningCarry[i - 1].toBigInt()) /
-        BigInt(1 << n);
+      const w = input[i]
+        .sub(out[i])
+        .add(runningCarry[i - 1])
+        .div(1n << BigInt(n));
       return Field(w);
     });
-    runningCarryBits = runningCarry[i].toBits(n + log2Ceil(k));
+    // runningCarryBits = runningCarry[i].toBits(n + log_ceil(k));
+    runningCarry[i].assertLessThan(1n << BigInt(n + log2Ceil(k)));
+
     runningCarry[i]
-      .mul(1 << n)
+      .mul(1n << BigInt(n))
       .assertEquals(input[i].sub(out[i]).add(runningCarry[i - 1]));
   }
   runningCarry[k - 1].assertEquals(out[k]);
@@ -363,34 +372,24 @@ function bigIsEqual(a: Field[], b: Field[], k: number) {
 function bigMod(a: Field[], b: Field[], n: number, k: number) {
   assert(n <= 126);
   let div = Provable.witness(Provable.Array(Field, k + 1), () => {
-    let longdiv = long_div(
-      n,
-      k,
-      k,
-      a.map((f) => f.toBigInt()),
-      b.map((f) => f.toBigInt())
-    );
-    return longdiv[0];
+    let longdiv = long_div(n, k, k, a, b);
+    return longdiv[0].slice(0, k + 1).map(Field);
   });
 
   let mod = Provable.witness(Provable.Array(Field, k), () => {
-    let longdiv = long_div(
-      n,
-      k,
-      k,
-      a.map((f) => f.toBigInt()),
-      b.map((f) => f.toBigInt())
-    );
-    return longdiv[1];
+    let longdiv = long_div(n, k, k, a, b);
+    return longdiv[1].slice(0, k).map(Field);
   });
 
-  let div_range_checks = div.map((f) => f.toBits(n));
-  let mod_range_checks = mod.map((f) => f.toBits(n));
+  for (let i = 0; i < k; i++) {
+    rangeCheck116(div[i]);
+    rangeCheck116(mod[i]);
+  }
 
   let mul = bigMult(div, b.concat(Field(0)), n, k + 1);
   let add = bigAdd(
     mul,
-    b.slice(0, k).concat(Array.from({ length: k + 2 }, () => Field(0))),
+    mod.concat(Array.from({ length: k + 2 }, () => Field(0))),
     n,
     2 * k + 2
   );
@@ -417,7 +416,7 @@ function bigSub(a: Field[], b: Field[], n: number, k: number) {
 
   const unit0 = modSub(a[0], b[0], n);
   let unit: ReturnType<typeof modSubThree>[] = [];
-  let out: Field[] = [];
+  let out: Field[] = [unit0.out];
 
   for (let i = 1; i < k; i++) {
     if (i == 1) {
@@ -446,7 +445,7 @@ function bigSubModP(a: Field[], b: Field[], p: Field[], n: number, k: number) {
     k
   );
 
-  return out;
+  return out.slice(0, k);
 }
 
 function bigMultModP(a: Field[], b: Field[], p: Field[], n: number, k: number) {
@@ -460,7 +459,7 @@ function bigMultModP(a: Field[], b: Field[], p: Field[], n: number, k: number) {
 
 function bigModInv(input: Field[], p: Field[], n: number, k: number) {
   assert(n <= 252);
-  let inv = Provable.witness(Provable.Array(Field, 100), () => {
+  let inv = Provable.witness(Provable.Array(Field, k), () => {
     const input_big = input.map((f) => f.toBigInt());
     const p_big = p.map((f) => f.toBigInt());
 
@@ -468,8 +467,8 @@ function bigModInv(input: Field[], p: Field[], n: number, k: number) {
   });
 
   let out = inv.slice(0, k);
-  //TODO fix range_checks
-  const range_checks = out.map((f) => f.toBits(n));
+  out.map((f) => rangeCheck116(f));
+
   const mult = bigMult(input, out, n, k);
   const mod = bigMod(mult, p, n, k);
 
