@@ -1,9 +1,9 @@
 import {
+  fromFields,
   bigAdd,
   bigMult,
   bigSub,
   bigSubModP,
-  unsafeFromLimbs,
   bigMultModP,
 } from './bigint';
 import { randomBigintRange } from '../utils';
@@ -19,7 +19,7 @@ describe('Circom BigAdd tests', () => {
     const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
     const resFields = bigAdd(b1.fields, b2.fields, 116, 18);
-    const resBig = unsafeFromLimbs(resFields, 116, 19);
+    const resBig = fromFields(resFields, 116, 19);
 
     expect(resBig).toEqual(x + y);
   });
@@ -27,10 +27,10 @@ describe('Circom BigAdd tests', () => {
   it('should add two max provable bigints', async () => {
     const limbSize = 1n << 116n;
     let x = Array.from({ length: 18 }, () => Field(limbSize));
-    const xb = unsafeFromLimbs(x, 116, 18);
+    const xb = fromFields(x, 116, 18);
 
     const resFields = bigAdd(x, x, 116, 18);
-    const resBig = unsafeFromLimbs(resFields, 116, 19);
+    const resBig = fromFields(resFields, 116, 19);
 
     expect(resBig).toEqual(xb * 2n);
   });
@@ -43,7 +43,7 @@ describe('Circom BigAdd tests', () => {
       const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
       const resFields = bigAdd(b1.fields, b2.fields, 116, 18);
-      const resBig = unsafeFromLimbs(resFields, 116, 19);
+      const resBig = fromFields(resFields, 116, 19);
 
       expect(resBig).toEqual(x + y);
     }
@@ -59,7 +59,7 @@ describe('Circom BigSub tests', () => {
     const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
     const resFields = bigSub(b1.fields, b2.fields, 116, 18);
-    const resBig = unsafeFromLimbs(resFields.out, 116, 18);
+    const resBig = fromFields(resFields.out, 116, 18);
 
     expect(resBig).toEqual(x - y);
   });
@@ -72,7 +72,7 @@ describe('Circom BigSub tests', () => {
     const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
     const resFields = bigSub(b2.fields, b1.fields, 116, 18);
-    const resBig = unsafeFromLimbs(resFields.out, 116, 18);
+    const resBig = fromFields(resFields.out, 116, 18);
 
     expect(resBig).not.toEqual(y - x);
   });
@@ -86,7 +86,7 @@ describe('Circom BigSub tests', () => {
       const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
       const resFields = bigSub(b1.fields, b2.fields, 116, 18);
-      const resBig = unsafeFromLimbs(resFields.out, 116, 18);
+      const resBig = fromFields(resFields.out, 116, 18);
 
       expect(resBig).toEqual(x - y);
     }
@@ -106,7 +106,7 @@ describe('Circom BigSubModP tests', () => {
 
     const resFields = bigSubModP(b1.fields, b2.fields, bp.fields, 116, 18);
 
-    const resBig = unsafeFromLimbs(resFields, 116, 18);
+    const resBig = fromFields(resFields, 116, 18);
 
     expect(resBig).toEqual((x - y) % p);
   });
@@ -123,7 +123,7 @@ describe('Circom BigSubModP tests', () => {
 
     const resFields = bigSubModP(b2.fields, b1.fields, bp.fields, 116, 18);
 
-    const resBig = unsafeFromLimbs(resFields, 116, 18);
+    const resBig = fromFields(resFields, 116, 18);
 
     expect(resBig).not.toEqual((x - y) % p);
   });
@@ -137,7 +137,7 @@ describe('Circom BigSubModP tests', () => {
       const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
       const resFields = bigSub(b1.fields, b2.fields, 116, 18);
-      const resBig = unsafeFromLimbs(resFields.out, 116, 18);
+      const resBig = fromFields(resFields.out, 116, 18);
 
       expect(resBig).toEqual(x - y);
     }
@@ -153,7 +153,7 @@ describe('Circom BigMult tests', () => {
     const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
     const resFields = bigMult(b1.fields, b2.fields, 116, 18);
-    const resBig = unsafeFromLimbs(resFields, 116, 36);
+    const resBig = fromFields(resFields, 116, 36);
 
     expect(resBig).toEqual(x * y);
   });
@@ -167,7 +167,7 @@ describe('Circom BigMult tests', () => {
       const b2 = Provable.witness(Bigint2048, () => Bigint2048.from(y));
 
       const resFields = bigMult(b1.fields, b2.fields, 116, 18);
-      const resBig = unsafeFromLimbs(resFields, 116, 36);
+      const resBig = fromFields(resFields, 116, 36);
 
       expect(resBig).toEqual(x * y);
     }
@@ -186,7 +186,7 @@ describe('Circom BigMultModP tests', () => {
     const bp = Provable.witness(Bigint2048, () => Bigint2048.from(p));
 
     const resFields = bigMultModP(b1.fields, b2.fields, bp.fields, 116, 18);
-    const resBig = unsafeFromLimbs(resFields.mod, 116, 18);
+    const resBig = fromFields(resFields.mod, 116, 18);
 
     expect(resBig).toEqual((x * y) % p);
   });
@@ -203,7 +203,7 @@ describe('Circom BigMultModP tests', () => {
       const bp = Provable.witness(Bigint2048, () => Bigint2048.from(p));
 
       const resFields = bigMultModP(b1.fields, b2.fields, bp.fields, 116, 18);
-      const resBig = unsafeFromLimbs(resFields.mod, 116, 18);
+      const resBig = fromFields(resFields.mod, 116, 18);
 
       expect(resBig).toEqual((x * y) % p);
     }

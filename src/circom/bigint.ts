@@ -1,10 +1,9 @@
 import { assert, Bool, Field, Provable } from 'o1js';
 import { long_div, mod_inv, splitFn, splitThreeFn, log2Ceil } from './utils.js';
-import { Bigint2048, modInverse, rangeCheck116 } from '../bigint.js';
+import { rangeCheck116 } from '../bigint.js';
 
 export {
   fromFields,
-  unsafeFromLimbs,
   bigAdd,
   bigSub,
   bigSubModP,
@@ -16,25 +15,13 @@ export {
   bigIsEqual,
 };
 
-//todo remove unused functions
-//todo remove
-function fromFields(fields: Field[], n: number, k: number): bigint {
-  let result = 0n;
-  const shiftFactor = BigInt(k);
-
-  for (let i = 0; i < n; i++) {
-    const fieldValue = fields[i].toBigInt();
-    result |= fieldValue << (shiftFactor * BigInt(i));
-  }
-
-  return result;
-}
-
-function unsafeFromLimbs(fields: Field[], n: number, k: number) {
+// copied from https://github.com/zksecurity/mina-credentials/blob/f3c98fed5da3880597e7cbb30dd7bbed91cb5023/src/rsa/rsa.ts#L46
+function fromFields(fields: Field[], n: number, k: number) {
   assert(fields.length === k, `expected ${k} limbs`);
   let value = 0n;
   for (let i = k - 1; i >= 0; i--) {
     value <<= BigInt(n);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     value += fields[i]!.toBigInt();
   }
   return value;
@@ -91,82 +78,6 @@ function modSumThree(a: Field, b: Field, c: Field, n: number) {
   const sum = abc.sub(carry.mul(limbSize));
 
   return { carry, sum };
-}
-
-function modSumFour(a: Field, b: Field, c: Field, d: Field, n: number) {
-  assert(n + 2 <= 253);
-  const bits = a
-    .add(b)
-    .add(c)
-    .add(d)
-    .toBits(n + 2);
-  const carry = bits[n].toField().add(bits[n + 1].toField().mul(2));
-  const sum = a
-    .add(b)
-    .add(c)
-    .add(d)
-    .sub(carry.mul(1 << n));
-
-  return { carry, sum };
-}
-
-// product mod 2 ** n with carry
-function modProd(a: Field, b: Field, n: number) {
-  assert(n <= 126);
-  const bits = a.mul(b).toBits(2 * n);
-  const prod = Field.fromBits(bits.slice(0, n));
-  const carry = Field.fromBits(bits.slice(n, 2 * n));
-
-  return { carry, prod };
-}
-
-// // split n + m bit input into two outputs
-// function split(input: Field, n: number, m: number) {
-//   assert(n <= 126);
-
-//   const small = Provable.witness(Field, () => {
-//     const res = input.toBigInt() % BigInt(1 << n);
-//     return Field(res);
-//   });
-
-//   const big = Provable.witness(Field, () => {
-//     const res = input.toBigInt() / BigInt(1 << n);
-//     return Field(res);
-//   });
-
-//   const small_bits = small.toBits(n);
-//   const big_bits = big.toBits(m);
-
-//   input.assertEquals(small.add(big.mul(1 << n)));
-
-//   return { small, big };
-// }
-
-function splitThree(input: Field, n: number, m: number, k: number) {
-  assert(n <= 126);
-
-  const small = Provable.witness(Field, () => {
-    const res = input.toBigInt() % BigInt(1 << n);
-    return Field(res);
-  });
-
-  const medium = Provable.witness(Field, () => {
-    const res = (input.toBigInt() / BigInt(1 << n)) % BigInt(1 << m);
-    return Field(res);
-  });
-
-  const big = Provable.witness(Field, () => {
-    const res = input.toBigInt() / BigInt(1 << (n + m));
-    return Field(res);
-  });
-
-  const small_bits = small.toBits(n);
-  const medium_bits = medium.toBits(m);
-  const big_bits = big.toBits(k);
-
-  input.assertEquals(small.add(medium.mul(1 << n)).add(big.mul(1 << (n + m))));
-
-  return { small, medium, big };
 }
 
 // a[i], b[i] in 0... 2**n-1
@@ -480,30 +391,4 @@ function bigIsEqual(a: Field[], b: Field[], k: number) {
   }
 
   return sum.equals(k);
-}
-
-// in[i] contains values in the range -2^(m-1) to 2^(m-1)
-// constrain that in[] as a big integer is zero
-// each limbs is n bits
-function CheckCarryToZero(input: Field[], n: number, m: number, k: number) {
-  assert(k >= 2);
-  assert(m + 3 <= 253);
-
-  let carry: Field[] = [];
-  for (let i = 0; i < k - 1; i++) {
-    if (i == 0) {
-      carry[i] = Provable.witness(Field, () => {
-        return input[i].toBigInt() / BigInt(1 << n);
-      });
-      input[i].assertEquals(carry[i].mul(1 << n));
-    } else {
-      carry[i] = Provable.witness(Field, () => {
-        return input[i].add(carry[i - 1]).toBigInt() / BigInt(1 << n);
-      });
-      input[i].add(carry[i - 1]).assertEquals(carry[i].mul(1 << n));
-    }
-    // checking carry is in the range of - 2^(m-n-1+eps), 2^(m+-n-1+eps)
-    carry[i].add(1 << (m + 3 - n - 1)).toBits(m + 3 - n);
-  }
-  input[k - 1].add(carry[k - 2]).assertEquals(0);
 }
