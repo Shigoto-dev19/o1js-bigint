@@ -3,7 +3,6 @@ import { inverse, sqrtMod } from './utils.js';
 
 export { Bigint2048, rsaVerify65537, rangeCheck116, fromFields };
 
-//todo return rest and quotient everytime -> new commit
 //todo add JSDoc --> new commit
 
 const mask = (1n << 116n) - 1n;
@@ -137,7 +136,7 @@ class Bigint2048 extends Struct({
     // the final limb plus carry should be zero to assert correctness
     delta[17].add(carry).assertEquals(0n);
 
-    return r;
+    return { quotient: q, remainder: r };
   }
 
   modMul(x: Bigint2048, y: Bigint2048) {
@@ -171,10 +170,10 @@ class Bigint2048 extends Struct({
         }
         // if bit is '0' and not started, do nothing
       } else {
-        res = this.modSquare(res); // always square after the first '1' bit
+        res = this.modSquare(res).remainder; // always square after the first '1' bit
 
         if (bit === '1') {
-          res = this.modMul(res, base); // multiply by base if bit is '1'
+          res = this.modMul(res, base).remainder; // multiply by base if bit is '1'
         }
       }
     }
@@ -229,7 +228,7 @@ class Bigint2048 extends Struct({
     // the final limb plus carry should be zero to confirm correctness
     delta[17].add(carry).assertEquals(0n);
 
-    return r;
+    return { quotient: q, remainder: r };
   }
 
   // (1 / x) % this
@@ -242,7 +241,7 @@ class Bigint2048 extends Struct({
       return Bigint2048.from(inv);
     });
 
-    this.modMul(x, inv).assertEquals(Bigint2048.from(1n));
+    this.modMul(x, inv).remainder.assertEquals(Bigint2048.from(1n));
 
     return inv;
   }
@@ -266,7 +265,7 @@ class Bigint2048 extends Struct({
       return Bigint2048.from(sqrt);
     });
 
-    this.modSquare(sqrt).assertEquals(x);
+    this.modSquare(sqrt).remainder.assertEquals(x);
 
     return sqrt;
   }
@@ -356,7 +355,7 @@ function add(
   // the final limb plus carry should be zero to assert correctness
   delta[17].add(carry).assertEquals(0n);
 
-  return r;
+  return { quotient: q, remainder: r };
 }
 
 /**
@@ -428,7 +427,7 @@ function multiply(
   // last carry is 0 ==> all of diff is 0 ==> x*y = q*p + r as integers
   delta[2 * 18 - 2].add(carry).assertEquals(0n);
 
-  return r;
+  return { quotient: q, remainder: r };
 }
 
 /**
@@ -446,10 +445,10 @@ function rsaVerify65537(
   // square 16 times
   let x = signature;
   for (let i = 0; i < 16; i++) {
-    x = modulus.modSquare(x);
+    x = modulus.modSquare(x).remainder;
   }
   // multiply by signature
-  x = modulus.modMul(x, signature);
+  x = modulus.modMul(x, signature).remainder;
 
   // check that x == message
   x.assertEquals(message);
