@@ -1,4 +1,13 @@
-export { sha256Bigint, generateRsaParams, rsaSign, randomPrime };
+export {
+  rsaSign,
+  sha256Bigint,
+  generateRsaParams,
+  randomPrime,
+  randomBigintRange,
+  power,
+  inverse,
+  sqrtMod,
+};
 
 /**
  * Generates an RSA signature for the given message using the private key and modulus.
@@ -70,7 +79,6 @@ function randomPrime(bitLength: number) {
 
 // primality test
 // after https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test#Miller%E2%80%93Rabin_test
-
 function millerRabinTest(n: bigint): 'composite' | 'probably prime' {
   const k = 10;
   if (n === 2n || n === 3n) return 'probably prime';
@@ -102,7 +110,7 @@ function millerRabinTest(n: bigint): 'composite' | 'probably prime' {
 // bigint helpers
 
 // random bigint in [min, max]
-export function randomBigintRange(min: bigint, max: bigint) {
+function randomBigintRange(min: bigint, max: bigint) {
   let length = byteLength(max - min);
   while (true) {
     let n = randomBigintLength(length);
@@ -163,6 +171,61 @@ function mod(x: bigint, p: bigint) {
   x = x % p;
   if (x < 0) return x + p;
   return x;
+}
+
+/**
+ * Computes the square root of a modulo p using the Tonelli-Shanks algorithm.
+ * Returns the canonical (smaller) square root.
+ *
+ * @param a - The bigint whose square root is to be found.
+ * @param p - The prime modulus.
+ * @returns A bigint representing the canonical square root of a modulo p.
+ * @throws Will throw an error if no square root exists.
+ */
+function sqrtMod(a: bigint, p: bigint): bigint {
+  // Check if a is a quadratic residue modulo p.
+  if (power(a, (p - 1n) >> 1n, p) !== 1n)
+    throw new Error('No square root exists for the given input.');
+
+  // If p ≡ 3 (mod 4), the answer is given by a^((p+1)/4) mod p.
+  if (p % 4n === 3n) return power(a, (p + 1n) >> 2n, p);
+
+  // Factor p - 1 as Q * 2^S with Q odd.
+  let S = 0n,
+    Q = p - 1n;
+  while ((Q & 1n) === 0n) {
+    Q >>= 1n;
+    S++;
+  }
+
+  // Find a quadratic non-residue z.
+  let z = 2n;
+  while (power(z, (p - 1n) >> 1n, p) !== p - 1n) z++;
+
+  // Initialize variables.
+  let M = S;
+  let c = power(z, Q, p);
+  let t = power(a, Q, p);
+  let R = power(a, (Q + 1n) >> 1n, p);
+
+  // Main loop.
+  while (t !== 1n) {
+    // Find the smallest i such that t^(2^i) ≡ 1 (mod p)
+    let i = 0n,
+      temp = t;
+    while (temp !== 1n && i < M) {
+      temp = (temp * temp) % p;
+      i++;
+    }
+    if (i === M) throw new Error('No square root exists for the given input.');
+    // Compute b = c^(2^(M-i-1)) mod p using a left-shift for the exponent.
+    const b = power(c, 1n << (M - i - 1n), p);
+    M = i;
+    c = (b * b) % p;
+    t = (t * c) % p;
+    R = (R * b) % p;
+  }
+  return R;
 }
 
 // primes up to 1000, to speed up miller-rabin
