@@ -5,7 +5,6 @@ export { Bigint2048, rsaVerify65537, rangeCheck116, fromFields };
 
 //todo return rest and quotient everytime -> new commit
 //todo add JSDoc --> new commit
-//todo reorder methods -> new commit
 
 const mask = (1n << 116n) - 1n;
 
@@ -18,22 +17,6 @@ class Bigint2048 extends Struct({
   fields: Field18,
   value: Unconstrained.withEmpty(0n),
 }) {
-  modMul(x: Bigint2048, y: Bigint2048) {
-    return multiply(x, y, this);
-  }
-
-  modSquare(x: Bigint2048) {
-    return multiply(x, x, this, { isSquare: true });
-  }
-
-  modAdd(x: Bigint2048, y: Bigint2048) {
-    return add(x, y, this, { isDouble: false });
-  }
-
-  modDouble(x: Bigint2048) {
-    return add(x, x, this, { isDouble: true });
-  }
-
   add(x: Bigint2048) {
     const sum = Provable.witness(Bigint2048, () => {
       return Bigint2048.from(this.toBigint() + x.toBigint());
@@ -63,6 +46,14 @@ class Bigint2048 extends Struct({
     delta[17].add(carry).assertEquals(0n);
 
     return sum;
+  }
+
+  modAdd(x: Bigint2048, y: Bigint2048) {
+    return add(x, y, this, { isDouble: false });
+  }
+
+  modDouble(x: Bigint2048) {
+    return add(x, x, this, { isDouble: true });
   }
 
   sub(x: Bigint2048) {
@@ -149,6 +140,48 @@ class Bigint2048 extends Struct({
     return r;
   }
 
+  modMul(x: Bigint2048, y: Bigint2048) {
+    return multiply(x, y, this);
+  }
+
+  modSquare(x: Bigint2048) {
+    return multiply(x, x, this, { isSquare: true });
+  }
+
+  // (x ^ e) % this
+  modPow(base: Bigint2048, e: bigint) {
+    if (e === 0n) {
+      return Bigint2048.from(1n); // \(x^0 \mod p = 1\)
+    }
+
+    // convert exponent to binary string
+    const bits = e.toString(2);
+    const bitLength = bits.length;
+
+    let res = Bigint2048.from(1n);
+    let started = false; // flag to indicate if we've encountered the first '1' bit
+
+    for (let i = 0; i < bitLength; i++) {
+      const bit = bits[i];
+
+      if (!started) {
+        if (bit === '1') {
+          res = base; // initialize result to base at first '1' bit
+          started = true;
+        }
+        // if bit is '0' and not started, do nothing
+      } else {
+        res = this.modSquare(res); // always square after the first '1' bit
+
+        if (bit === '1') {
+          res = this.modMul(res, base); // multiply by base if bit is '1'
+        }
+      }
+    }
+
+    return res;
+  }
+
   // x % p
   mod(x: Bigint2048) {
     // witness q, r so that x = q*p + r
@@ -199,10 +232,6 @@ class Bigint2048 extends Struct({
     return r;
   }
 
-  assertEquals(x: Bigint2048) {
-    Provable.assertEqual(Bigint2048, this, x);
-  }
-
   // (1 / x) % this
   modInv(x: Bigint2048) {
     const inv = Provable.witness(Bigint2048, () => {
@@ -216,6 +245,15 @@ class Bigint2048 extends Struct({
     this.modMul(x, inv).assertEquals(Bigint2048.from(1n));
 
     return inv;
+  }
+
+  // (x / y) % this
+  modDiv(x: Bigint2048, y: Bigint2048) {
+    const inv_y = this.modInv(y);
+
+    let res = this.modMul(inv_y, x);
+
+    return res;
   }
 
   // sqrt(x) % this
@@ -233,51 +271,8 @@ class Bigint2048 extends Struct({
     return sqrt;
   }
 
-  // (x / y) % this
-  modDiv(x: Bigint2048, y: Bigint2048) {
-    const inv_y = this.modInv(y);
-
-    let res = this.modMul(inv_y, x);
-
-    return res;
-  }
-
-  // (x ^ e) % this
-  modPow(base: Bigint2048, e: bigint) {
-    if (e === 0n) {
-      return Bigint2048.from(1n); // \(x^0 \mod p = 1\)
-    }
-
-    // convert exponent to binary string
-    const bits = e.toString(2);
-    const bitLength = bits.length;
-
-    let res = Bigint2048.from(1n);
-    let started = false; // flag to indicate if we've encountered the first '1' bit
-
-    for (let i = 0; i < bitLength; i++) {
-      const bit = bits[i];
-
-      if (!started) {
-        if (bit === '1') {
-          res = base; // initialize result to base at first '1' bit
-          started = true;
-        }
-        // if bit is '0' and not started, do nothing
-      } else {
-        res = this.modSquare(res); // always square after the first '1' bit
-
-        if (bit === '1') {
-          res = this.modMul(res, base); // multiply by base if bit is '1'
-        }
-      }
-    }
-
-    return res;
-  }
-
-  toBits() {
-    return this.fields.flatMap((field) => field.toBits());
+  assertEquals(x: Bigint2048) {
+    Provable.assertEqual(Bigint2048, this, x);
   }
 
   toBigint() {
