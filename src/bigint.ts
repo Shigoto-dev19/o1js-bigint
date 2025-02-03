@@ -3,8 +3,6 @@ import { inverse, sqrtMod } from './utils.js';
 
 export { Bigint2048, rsaVerify65537, rangeCheck116, fromFields };
 
-//todo add JSDoc --> new commit
-
 const mask = (1n << 116n) - 1n;
 
 /**
@@ -16,6 +14,7 @@ class Bigint2048 extends Struct({
   fields: Field18,
   value: Unconstrained.withEmpty(0n),
 }) {
+  // this + x
   add(x: Bigint2048) {
     const sum = Provable.witness(Bigint2048, () => {
       return Bigint2048.from(this.toBigint() + x.toBigint());
@@ -47,14 +46,18 @@ class Bigint2048 extends Struct({
     return sum;
   }
 
+  // (x + y) % this
   modAdd(x: Bigint2048, y: Bigint2048) {
     return add(x, y, this, { isDouble: false });
   }
 
+  // (2 * x) % this
   modDouble(x: Bigint2048) {
     return add(x, x, this, { isDouble: true });
   }
 
+  // (this - x)
+  // throws an error if this < x
   sub(x: Bigint2048) {
     const diff = Provable.witness(Bigint2048, () => {
       return Bigint2048.from(this.toBigint() - x.toBigint());
@@ -86,6 +89,8 @@ class Bigint2048 extends Struct({
     return diff;
   }
 
+  // (x - y) % this
+  // throws an error if x < y
   modSub(x: Bigint2048, y: Bigint2048) {
     // witness q, r so that x-y = q*p + r
     let { q, r } = Provable.witness(
@@ -139,15 +144,20 @@ class Bigint2048 extends Struct({
     return { quotient: q, remainder: r };
   }
 
+  // (x * y) % this
+  // assumes that x and y are reduced modulo p; throws an error otherwise.
   modMul(x: Bigint2048, y: Bigint2048) {
     return multiply(x, y, this);
   }
 
+  // (x ** 2) % this
+  // assumes that x is reduced modulo p; throws an error otherwise.
   modSquare(x: Bigint2048) {
     return multiply(x, x, this, { isSquare: true });
   }
 
-  // (x ^ e) % this
+  // (base ** e) % this
+  // assumes that base is reduced modulo p; throws an error otherwise.
   modPow(base: Bigint2048, e: bigint) {
     if (e === 0n) {
       return Bigint2048.from(1n); // \(x^0 \mod p = 1\)
@@ -296,7 +306,12 @@ class Bigint2048 extends Struct({
 }
 
 /**
- * (x + y) mod p
+ * Computes (x + y) mod p.
+ *
+ * @param x - First operand.
+ * @param y - Second operand.
+ * @param p - Modulus.
+ * @returns An object with { quotient, remainder }.
  */
 function add(
   x: Bigint2048,
@@ -359,8 +374,16 @@ function add(
 }
 
 /**
- * x*y mod p
- * assumes x, and y are reduced modulo p
+ * Computes (x * y) mod p.
+ *
+ * **Assumptions:**
+ * - x and y should be reduced modulo p.
+ * - If x or y are not reduced modulo p, the function will throw an error due to range check violations.
+ *
+ * @param x - First operand.
+ * @param y - Second operand.
+ * @param p - Modulus.
+ * @returns An object with { quotient, remainder }.
  */
 function multiply(
   x: Bigint2048,
